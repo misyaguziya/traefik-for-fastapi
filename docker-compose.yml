@@ -1,0 +1,53 @@
+version: "3.7"
+
+services:
+  traefik:
+    image: "traefik:v2.10.0"
+    container_name: "traefik"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.http.address=:8000"
+      - "--log.filePath=/logs/traefik.log"
+      - "--log.format=json"
+      - "--log.level=DEBUG"
+      - "--accessLog.filePath=/logs/access.log"
+      - "--accessLog.format=json"
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "8000:8000"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./logs:/logs
+
+  fastapi_temp1:
+    build: ./fastapi1
+    expose:
+      - 80
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 80 --root-path="/api-template1"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fastapi_temp1.rule=Host(`fastapi.localhost`) && PathPrefix(`/api-template1`)"
+      - "traefik.http.routers.fastapi_temp1.entrypoints=http, web"
+      - "traefik.http.routers.fastapi_temp1.middlewares=auth1, api_name1"
+      - "traefik.http.middlewares.api_name1.stripprefix.prefixes=/api-template1"
+      - "traefik.http.middlewares.auth1.basicauth.users=test:$$apr1$$iSA3vEsh$51cGxRXQnt05AvjpuEsaS0"
+
+  fastapi_temp2:
+    build: ./fastapi2
+    expose:
+      - 80
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 80 --root-path="/api-template2"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fastapi_temp2.rule=Host(`fastapi.localhost`) && PathPrefix(`/api-template2`)"
+      - "traefik.http.routers.fastapi_temp2.entrypoints=http, web"
+      - "traefik.http.routers.fastapi_temp2.middlewares=auth2, api_name2"
+      - "traefik.http.middlewares.api_name2.stripprefix.prefixes=/api-template2"
+      - "traefik.http.middlewares.auth2.basicauth.users=test:$$apr1$$iSA3vEsh$51cGxRXQnt05AvjpuEsaS0"
